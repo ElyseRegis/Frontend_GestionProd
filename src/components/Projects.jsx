@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Projects = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -438,7 +440,7 @@ const Projects = () => {
                   </div>
                   
                   <div className="project-footer">
-                    <span className="deadline-badge" style={{ 
+                    <span className="deadline-badge" style={{
                       color: deadlineInfo.color,
                       background: `${deadlineInfo.color}15`
                     }}>
@@ -449,6 +451,21 @@ const Projects = () => {
                         <i className="fas fa-check-circle"></i> Terminé
                       </span>
                     )}
+                  </div>
+                  
+                  {/* Bouton d'accès à la gestion des sprints */}
+                  <div className="project-actions">
+                    <button 
+                      className="btn-sprint-manage"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/sprints/${project.id}`);
+                      }}
+                      title="Gérer les sprints et tâches"
+                    >
+                      <i className="fas fa-chart-line"></i>
+                      <span>Gérer sprints & tâches</span>
+                    </button>
                   </div>
                 </div>
               </div>

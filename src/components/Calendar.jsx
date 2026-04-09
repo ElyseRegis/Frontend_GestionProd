@@ -361,19 +361,19 @@ const Calendar = () => {
                 <div className="detail-grid">
                   <div className="detail-item">
                     <label><i className="fas fa-calendar"></i> Deadline</label>
-                    <value>{new Date(selectedProject.deadline).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</value>
+                    <span className="detail-value">{new Date(selectedProject.deadline).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                   </div>
                   <div className="detail-item">
                     <label><i className="fas fa-star"></i> Points</label>
-                    <value>{selectedProject.total_points?.toLocaleString() || 0}</value>
+                    <span className="detail-value">{selectedProject.total_points?.toLocaleString() || 0}</span>
                   </div>
                   <div className="detail-item">
                     <label><i className="fas fa-check-circle"></i> Statut</label>
-                    <value>{selectedProject.project_completed ? '✅ Terminé' : '🔄 En cours'}</value>
+                    <span className="detail-value">{selectedProject.project_completed ? '✅ Terminé' : '🔄 En cours'}</span>
                   </div>
                   <div className="detail-item">
                     <label><i className="fas fa-clock"></i> Créé le</label>
-                    <value>{new Date(selectedProject.created_at).toLocaleDateString('fr-FR')}</value>
+                    <span className="detail-value">{new Date(selectedProject.created_at).toLocaleDateString('fr-FR')}</span>
                   </div>
                 </div>
               </div>

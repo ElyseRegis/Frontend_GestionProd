@@ -360,39 +360,6 @@ const Sprints = () => {
                     </div>
                 </div>
             )}
-
-            <style jsx>{`
-                .modal-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0,0,0,0.5);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 1000;
-                }
-                .modal-content {
-                    background: white;
-                    border-radius: 24px;
-                    padding: 32px;
-                    max-width: 500px;
-                    width: 90%;
-                    max-height: 80vh;
-                    overflow-y: auto;
-                }
-                .stat-card.active {
-                    border: 2px solid #2c6e9e;
-                    box-shadow: 0 4px 12px rgba(44,110,158,0.2);
-                }
-                .progress-bar-bg {
-                    background: #e2e8f0;
-                    border-radius: 4px;
-                    overflow: hidden;
-                }
-            `}</style>
         </div>
     );
 };

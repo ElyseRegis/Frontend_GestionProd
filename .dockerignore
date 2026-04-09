@@ -1,0 +1,16 @@
+# Frontend .dockerignore
+
+node_modules/
+dist/
+.env
+.env.*
+*.log
+.git/
+.gitignore
+.vscode/
+.idea/
+*.md
+docker-compose.yml
+Dockerfile
+../backend/
+../.env.docker

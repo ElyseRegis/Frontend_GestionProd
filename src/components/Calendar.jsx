@@ -19,7 +19,9 @@ const Calendar = () => {
       const response = await api.get('/projects');
       setProjects(response.data);
     } catch (error) {
-      console.error('Erreur:', error);
+      if (error.response?.status !== 401) {
+        console.error('Erreur:', error);
+      }
     } finally {
       setLoading(false);
     }

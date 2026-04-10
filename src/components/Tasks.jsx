@@ -17,7 +17,9 @@ const Tasks = () => {
       const response = await api.get('/tasks/my-tasks');
       setTasks(response.data);
     } catch (error) {
-      console.error('Erreur:', error);
+      if (error.response?.status !== 401) {
+        console.error('Erreur:', error);
+      }
     } finally {
       setLoading(false);
     }

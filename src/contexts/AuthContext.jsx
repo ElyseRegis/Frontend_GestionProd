@@ -14,14 +14,46 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
-      setUser(userData);
+      
+      // Validate user data exists
+      if (userData && userData.id) {
+        setUser(userData);
+      } else {
+        // Invalid user data, clear and redirect
+        logout();
+      }
+    } else {
+      // No token, clear any stale data
+      setUser(null);
     }
     setLoading(false);
   }, [token]);
 
-  const login = async (email, password) => {
+  // Add interceptor for 401 errors
+  useEffect(() => {
+    const interceptor = api.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.response?.status === 401) {
+          // Token expired or invalid, logout user
+          logout();
+          // Redirect to login if not already there
+          if (window.location.pathname !== '/login' && window.location.pathname !== '/auth/login') {
+            window.location.href = '/login';
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      api.interceptors.response.eject(interceptor);
+    };
+  }, []);
+
+  const login = async (email, password, rememberMe = false) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await api.post('/auth/login', { email, password, remember_me: rememberMe });
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));

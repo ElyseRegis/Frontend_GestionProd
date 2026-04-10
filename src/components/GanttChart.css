@@ -1,0 +1,245 @@
+/* Gantt Chart Styles */
+.gantt-container {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  margin-top: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  overflow-x: auto;
+}
+
+.gantt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.gantt-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #1e293b;
+}
+
+.gantt-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.gantt-filter {
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: white;
+  cursor: pointer;
+}
+
+.gantt-chart {
+  min-width: 800px;
+  position: relative;
+}
+
+.gantt-timeline {
+  display: flex;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+}
+
+.gantt-month {
+  flex: 1;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gantt-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  min-height: 40px;
+}
+
+.gantt-label {
+  width: 200px;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  color: #334155;
+  font-weight: 500;
+  padding-right: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gantt-bars-container {
+  flex: 1;
+  position: relative;
+  height: 32px;
+  background: #f8fafc;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gantt-bar {
+  position: absolute;
+  height: 100%;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.gantt-bar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.gantt-bar.validated {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.gantt-bar.in_progress {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.gantt-bar.at_risk {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.gantt-bar.overdue {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  animation: pulse-red 2s infinite;
+}
+
+.gantt-bar.not_started {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+}
+
+.gantt-bar-label {
+  padding: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gantt-deadline-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #dc2626;
+  z-index: 10;
+}
+
+.gantt-deadline-marker::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #dc2626;
+}
+
+.gantt-deadline-label {
+  position: absolute;
+  top: -24px;
+  left: 8px;
+  font-size: 0.7rem;
+  color: #dc2626;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.gantt-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.gantt-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.gantt-legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+.gantt-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.gantt-stat {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gantt-stat-icon {
+  font-size: 1.5rem;
+}
+
+.gantt-stat-info {
+  flex: 1;
+}
+
+.gantt-stat-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gantt-stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+@keyframes pulse-red {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@media (max-width: 768px) {
+  .gantt-label {
+    width: 120px;
+    font-size: 0.8rem;
+  }
+  
+  .gantt-stats {
+    grid-template-columns: 1fr;
+  }
+}

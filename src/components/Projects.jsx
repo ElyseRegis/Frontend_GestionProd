@@ -29,7 +29,9 @@ const Projects = () => {
       const response = await api.get('/projects');
       setProjects(response.data);
     } catch (error) {
-      console.error('Erreur:', error);
+      if (error.response?.status !== 401) {
+        console.error('Erreur:', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -452,6 +454,67 @@ const Projects = () => {
                       </span>
                     )}
                   </div>
+
+                  {/* Actions du projet (Admin uniquement) */}
+                  {(user?.role === 'admin') && (
+                    <div className="project-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                      <button
+                        className="btn-sm"
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: project.archived ? '#10b981' : '#f59e0b',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem'
+                        }}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const action = project.archived ? 'désarchiver' : 'archiver';
+                          if (window.confirm(`${project.archived ? 'Désarchiver' : 'Archiver'} le projet "${project.name}" ?`)) {
+                            try {
+                              await api.patch(`/projects/${project.id}`, { archived: !project.archived });
+                              fetchProjects();
+                            } catch (error) {
+                              console.error('Erreur:', error);
+                              alert('Erreur lors de l\'action');
+                            }
+                          }
+                        }}
+                      >
+                        <i className={`fas ${project.archived ? 'fa-archive' : 'fa-box'}`}></i> {project.archived ? 'Désarchiver' : 'Archiver'}
+                      </button>
+                      <button
+                        className="btn-sm"
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: '#dc2626',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem'
+                        }}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`⚠️ Supprimer définitivement le projet "${project.name}" ?\n\nCette action est irréversible !`)) {
+                            try {
+                              await api.delete(`/projects/${project.id}`);
+                              fetchProjects();
+                            } catch (error) {
+                              console.error('Erreur:', error);
+                              alert('Erreur lors de la suppression');
+                            }
+                          }
+                        }}
+                      >
+                        <i className="fas fa-trash"></i> Supprimer
+                      </button>
+                    </div>
+                  )}
                   
                   {/* Bouton d'accès à la gestion des sprints */}
                   <div className="project-actions">

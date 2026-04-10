@@ -46,15 +46,23 @@ const Sprints = () => {
 
     const fetchData = async () => {
         try {
-            const [sprintsRes, projectRes, usersRes] = await Promise.all([
+            const [sprintsRes, projectRes] = await Promise.all([
                 api.get(`/sprints/project/${projectId}`),
-                api.get(`/projects/${projectId}`),
-                api.get('/users')
+                api.get(`/projects/${projectId}`)
             ]);
             setSprints(sprintsRes.data);
             setProject(projectRes.data);
-            setUsers(usersRes.data);
-            
+
+            // Fetch users (only for admin/cdp)
+            try {
+                const usersRes = await api.get('/users');
+                setUsers(usersRes.data);
+            } catch (error) {
+                // If not admin, try alternative endpoint or use empty array
+                console.error('Error fetching users:', error);
+                setUsers([]);
+            }
+
             // Fetch tasks for each sprint
             const tasksBySprint = {};
             await Promise.all(
@@ -68,7 +76,7 @@ const Sprints = () => {
                     }
                 })
             );
-            
+
             // Store tasks in sprints object
             setSprints(prev => prev.map(sprint => ({
                 ...sprint,
@@ -190,6 +198,44 @@ const Sprints = () => {
                 fetchData();
             } catch (error) {
                 alert(error.response?.data?.error || 'Erreur lors de la validation');
+            }
+        }
+    };
+
+    const handleDeleteTask = async (taskId, taskTitle) => {
+        if (window.confirm(`Supprimer la tâche "${taskTitle}" ?`)) {
+            try {
+                await api.delete(`/tasks/${taskId}`);
+                fetchData();
+            } catch (error) {
+                console.error('Erreur lors de la suppression:', error);
+                alert(error.response?.data?.error || 'Erreur lors de la suppression');
+            }
+        }
+    };
+
+    // Validate task (CDP/Admin only)
+    const handleValidateTask = async (taskId, taskTitle) => {
+        if (window.confirm(`Valider la tâche "${taskTitle}" ?`)) {
+            try {
+                await api.patch(`/tasks/${taskId}`, { status: 'validated' });
+                fetchData();
+            } catch (error) {
+                console.error('Erreur lors de la validation:', error);
+                alert(error.response?.data?.error || 'Erreur lors de la validation');
+            }
+        }
+    };
+
+    // Mark task for rework (CDP/Admin only)
+    const handleReworkTask = async (taskId, taskTitle) => {
+        if (window.confirm(`Marquer la tâche "${taskTitle}" comme "À revoir" ?`)) {
+            try {
+                await api.patch(`/tasks/${taskId}`, { status: 'rework' });
+                fetchData();
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert(error.response?.data?.error || 'Erreur lors de la modification');
             }
         }
     };
@@ -593,9 +639,9 @@ const Sprints = () => {
                                                                         </div>
                                                                     </div>
                                                                     
-                                                                    {/* DROITE: 3 Boutons (Oeil, Modifier, Corbeille) */}
+                                                                    {/* DROITE: Boutons d'action */}
                                                                     <div className="task-right-section">
-                                                                        <button 
+                                                                        <button
                                                                             className="task-action-btn view-btn"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
@@ -605,8 +651,37 @@ const Sprints = () => {
                                                                         >
                                                                             <i className="fas fa-eye"></i>
                                                                         </button>
+                                                                        
+                                                                        {/* Bouton Valider (vert) - CDP/Admin uniquement */}
+                                                                        {(user?.role === 'admin' || user?.role === 'cdp') && task.status !== 'validated' && (
+                                                                            <button
+                                                                                className="task-action-btn validate-task-btn"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleValidateTask(task.id, task.title);
+                                                                                }}
+                                                                                title="Valider la tâche"
+                                                                            >
+                                                                                <i className="fas fa-check"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        
+                                                                        {/* Bouton À revoir (orange) - CDP/Admin uniquement */}
+                                                                        {(user?.role === 'admin' || user?.role === 'cdp') && task.status !== 'validated' && task.status !== 'rework' && (
+                                                                            <button
+                                                                                className="task-action-btn rework-btn"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleReworkTask(task.id, task.title);
+                                                                                }}
+                                                                                title="Marquer comme 'À revoir'"
+                                                                            >
+                                                                                <i className="fas fa-undo"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        
                                                                         {(user?.role === 'admin' || user?.role === 'cdp') && (
-                                                                            <button 
+                                                                            <button
                                                                                 className="task-action-btn edit-btn"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
@@ -618,13 +693,11 @@ const Sprints = () => {
                                                                             </button>
                                                                         )}
                                                                         {(user?.role === 'admin' || user?.role === 'cdp') && (
-                                                                            <button 
+                                                                            <button
                                                                                 className="task-action-btn delete-btn"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
-                                                                                    if (window.confirm(`Supprimer la tâche "${task.title}" ?`)) {
-                                                                                        alert('Fonctionnalité de suppression à implémenter côté backend');
-                                                                                    }
+                                                                                    handleDeleteTask(task.id, task.title);
                                                                                 }}
                                                                                 title="Supprimer"
                                                                             >
@@ -820,8 +893,13 @@ const Sprints = () => {
                                         <option value="pending">⏳ En attente</option>
                                         <option value="progress">🔄 En cours</option>
                                         <option value="done">✅ Terminée</option>
-                                        <option value="rework">🔧 À revoir</option>
-                                        <option value="validated">✓ Validée</option>
+                                        {/* Les statuts 'validated' et 'rework' sont gérés par les boutons dédiés */}
+                                        {(user?.role === 'admin' || user?.role === 'dev') && (
+                                            <>
+                                                <option value="rework">🔧 À revoir</option>
+                                                <option value="validated">✓ Validée</option>
+                                            </>
+                                        )}
                                     </select>
                                 </div>
                                 <div className="form-group">

@@ -16,7 +16,9 @@ const Primes = () => {
       const response = await api.get('/primes/my-primes');
       setPrimes(response.data);
     } catch (error) {
-      console.error('Erreur:', error);
+      if (error.response?.status !== 401) {
+        console.error('Erreur:', error);
+      }
     } finally {
       setLoading(false);
     }

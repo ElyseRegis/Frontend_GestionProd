@@ -11,31 +11,45 @@ const CdpDashboard = () => {
 
   useEffect(() => {
     fetchProjects();
+    fetchPendingSprints();
   }, []);
 
   const fetchProjects = async () => {
     try {
+      // If CDP, only show their assigned projects; if admin, show all
       const response = await api.get('/projects?include_archived=false');
-      setProjects(response.data);
-      
+      const filteredProjects = user.role === 'cdp' 
+        ? response.data.filter(p => p.assigned_cdp_id === user.id || p.created_by === user.id)
+        : response.data;
+      setProjects(filteredProjects);
+
       // Fetch sprints for each project to calculate completion
       const projectsWithSprints = await Promise.all(
-        response.data.map(async (project) => {
+        filteredProjects.map(async (project) => {
           try {
             const sprintsRes = await api.get(`/sprints/project/${project.id}`);
             const sprints = sprintsRes.data;
             const validated = sprints.filter(s => s.validated).length;
             const total = sprints.length;
+            const pendingValidation = sprints.filter(s => !s.validated);
+            
+            // Check if all tasks in each sprint are validated
+            const readyForValidation = pendingValidation.filter(sprint => 
+              sprint.validated_tasks === sprint.total_tasks && sprint.total_tasks > 0
+            );
+
             return {
               ...project,
-              sprintStats: { validated, total }
+              sprintStats: { validated, total },
+              sprints,
+              readyForValidation: readyForValidation.length
             };
           } catch (error) {
-            return { ...project, sprintStats: { validated: 0, total: 0 } };
+            return { ...project, sprintStats: { validated: 0, total: 0 }, sprints: [], readyForValidation: 0 };
           }
         })
       );
-      
+
       setProjects(projectsWithSprints);
     } catch (error) {
       if (error.response?.status !== 401) {
@@ -43,6 +57,15 @@ const CdpDashboard = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingSprints = async () => {
+    try {
+      // This will be implemented to fetch sprints waiting for validation
+      // For now, it's handled in the projects fetch
+    } catch (error) {
+      console.error('Error fetching pending sprints:', error);
     }
   };
 
@@ -75,7 +98,7 @@ const CdpDashboard = () => {
       {/* Projets assignés */}
       <div className="card-modern" style={{ marginBottom: '24px' }}>
         <h3><i className="fas fa-folder-open"></i> Mes Projets</h3>
-        
+
         {projects.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
             <i className="fas fa-inbox" style={{ fontSize: '3rem', marginBottom: '16px' }}></i>
@@ -89,19 +112,54 @@ const CdpDashboard = () => {
 
               return (
                 <div key={project.id} className="project-card">
-                  <div className="project-header" style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
+                  <div className="project-header" style={{ background: project.project_validated 
+                    ? 'linear-gradient(135deg, #10B981, #059669)' 
+                    : 'linear-gradient(135deg, #3B82F6, #2563EB)' 
+                  }}>
                     <i className="fas fa-folder-open"></i>
                     <span>{project.name}</span>
                   </div>
                   <div className="project-body">
+                    {project.description && (
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px', 
+                        overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', 
+                        WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        {project.description}
+                      </p>
+                    )}
+
                     <div style={{ marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Avancement</span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--accent-primary)' }}>{completion}%</span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--accent-primary)' }}>
+                          {completion}% {project.project_validated && '✓'}
+                        </span>
                       </div>
                       <div style={{ height: '8px', background: 'var(--bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${completion}%`, background: 'var(--accent-primary)', transition: 'width 0.3s' }}></div>
+                        <div style={{ height: '100%', width: `${completion}%`, background: project.project_validated 
+                          ? 'var(--accent-success)' : 'var(--accent-primary)', transition: 'width 0.3s' }}></div>
                       </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                      {project.sprintStats.total > 0 && (
+                        <span style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px', 
+                          background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
+                          <i className="fas fa-flag"></i> {project.sprintStats.validated}/{project.sprintStats.total} sprints
+                        </span>
+                      )}
+                      {project.readyForValidation > 0 && (
+                        <span style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px', 
+                          background: '#FEF3C7', color: '#D97706' }}>
+                          <i className="fas fa-exclamation-triangle"></i> {project.readyForValidation} prêt(s)
+                        </span>
+                      )}
+                      {project.project_validated && (
+                        <span style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px', 
+                          background: '#D1FAE5', color: '#059669' }}>
+                          <i className="fas fa-check-circle"></i> Validé
+                        </span>
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
@@ -127,10 +185,47 @@ const CdpDashboard = () => {
       {/* Sprints à valider */}
       <div className="card-modern">
         <h3><i className="fas fa-check-double"></i> Sprints en attente de validation</h3>
-        <div style={{ marginTop: '16px', textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>
-          <i className="fas fa-check-circle" style={{ fontSize: '2rem', color: 'var(--accent-success)' }}></i>
-          <p style={{ marginTop: '12px' }}>Aucun sprint en attente de validation</p>
-        </div>
+        {projects.reduce((acc, project) => {
+          if (project.sprints) {
+            const pendingSprints = project.sprints.filter(s => !s.validated && s.validated_tasks === s.total_tasks && s.total_tasks > 0);
+            return acc.concat(pendingSprints.map(s => ({ ...s, projectName: project.name, projectId: project.id })));
+          }
+          return acc;
+        }, []).length === 0 ? (
+          <div style={{ marginTop: '16px', textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>
+            <i className="fas fa-check-circle" style={{ fontSize: '2rem', color: 'var(--accent-success)' }}></i>
+            <p style={{ marginTop: '12px' }}>Aucun sprint en attente de validation</p>
+          </div>
+        ) : (
+          <div style={{ marginTop: '16px' }}>
+            {projects.reduce((acc, project) => {
+              if (project.sprints) {
+                const pendingSprints = project.sprints.filter(s => !s.validated && s.validated_tasks === s.total_tasks && s.total_tasks > 0);
+                return acc.concat(pendingSprints.map(s => ({ ...s, projectName: project.name, projectId: project.id })));
+              }
+              return acc;
+            }, []).map(sprint => (
+              <div key={sprint.id} style={{ 
+                padding: '12px', marginBottom: '8px', background: 'var(--bg-tertiary)', 
+                borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' 
+              }}>
+                <div>
+                  <strong>{sprint.name}</strong> - {sprint.projectName}
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    {sprint.validated_tasks}/{sprint.total_tasks} tâches validées
+                  </div>
+                </div>
+                <button
+                  className="btn-primary"
+                  style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                  onClick={() => navigate(`/cdp/projets/${sprint.projectId}`)}
+                >
+                  <i className="fas fa-eye"></i> Voir
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

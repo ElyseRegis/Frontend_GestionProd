@@ -16,6 +16,7 @@ import Users from './components/Users';
 import Primes from './components/Primes';
 import Calendar from './components/Calendar';
 import Sprints from './components/Sprints';
+import MonthlySummary from './components/MonthlySummary';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -93,6 +94,13 @@ function AppRoutes() {
         <Route path="admin/utilisateurs" element={
           <ProtectedRoute allowedRoles={['admin']}>
             <Users />
+          </ProtectedRoute>
+        } />
+
+        {/* Monthly Summary (Admin only) */}
+        <Route path="admin/summary" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <MonthlySummary />
           </ProtectedRoute>
         } />
         

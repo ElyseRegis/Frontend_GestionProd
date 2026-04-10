@@ -68,6 +68,7 @@ const Layout = () => {
     { path: '/projects', icon: 'fa-folder-open', label: 'Projets', roles: ['admin', 'cdp'] },
     { path: '/tasks', icon: 'fa-tasks', label: 'Mes tâches', roles: ['admin', 'cdp', 'dev'] },
     { path: '/users', icon: 'fa-users', label: 'Utilisateurs', roles: ['admin'] },
+    { path: '/admin/summary', icon: 'fa-chart-bar', label: 'Résumé Mensuel', roles: ['admin'] },
     { path: '/primes', icon: 'fa-coins', label: 'Primes', roles: ['admin', 'cdp', 'dev'] },
     { path: '/calendar', icon: 'fa-calendar', label: 'Calendrier', roles: ['admin', 'cdp'] },
   ];

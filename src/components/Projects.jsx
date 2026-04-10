@@ -7,27 +7,75 @@ const Projects = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
+  const [cdps, setCdps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [creating, setCreating] = useState(false);
   const [newProject, setNewProject] = useState({
-    name: '', 
-    type: 'web_app', 
-    total_points: 1000, 
+    name: '',
+    type: 'web_app',
+    total_points: 1000,
     deadline: '',
-    description: ''
+    description: '',
+    assigned_cdp_id: ''
   });
   const [errors, setErrors] = useState({});
+  const [projectStates, setProjectStates] = useState({});
 
   useEffect(() => {
     fetchProjects();
+    fetchCdps();
   }, []);
+
+  const fetchCdps = async () => {
+    try {
+      const response = await api.get('/users');
+      setCdps(response.data.filter(u => u.role === 'cdp'));
+    } catch (error) {
+      console.error('Error fetching CDPs:', error);
+    }
+  };
+
+  const fetchProjectDetails = async (projectId) => {
+    try {
+      const [sprintsRes, tasksRes] = await Promise.all([
+        api.get(`/sprints/project/${projectId}`),
+        api.get(`/tasks/project/${projectId}`)
+      ]);
+
+      const sprints = sprintsRes.data;
+      const tasks = tasksRes.data || [];
+
+      // Check if any task has started (status !== 'pending')
+      const hasStartedTasks = tasks.some(t => t.status !== 'pending');
+      
+      // Check if all sprints are validated
+      const allSprintsValidated = sprints.length > 0 && sprints.every(s => s.validated);
+
+      setProjectStates(prev => ({
+        ...prev,
+        [projectId]: {
+          hasStartedTasks,
+          allSprintsValidated,
+          sprintCount: sprints.length,
+          validatedSprintCount: sprints.filter(s => s.validated).length
+        }
+      }));
+    } catch (error) {
+      console.error(`Error fetching project ${projectId} details:`, error);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
       const response = await api.get('/projects');
       setProjects(response.data);
+      
+      // Fetch details for each project
+      response.data.forEach(project => {
+        fetchProjectDetails(project.id);
+      });
     } catch (error) {
       if (error.response?.status !== 401) {
         console.error('Erreur:', error);
@@ -77,28 +125,33 @@ const Projects = () => {
   const createProject = async (e) => {
     e.preventDefault();
     if (!validateStep(currentStep)) return;
-    
+
     setCreating(true);
     try {
       console.log('Creating project:', newProject);
-      const response = await api.post('/projects', newProject);
+      const projectData = {
+        ...newProject,
+        assigned_cdp_id: newProject.assigned_cdp_id || null
+      };
+      const response = await api.post('/projects', projectData);
       console.log('Project created:', response.data);
       fetchProjects();
       setShowModal(false);
       setCurrentStep(1);
-      setNewProject({ 
-        name: '', 
-        type: 'web_app', 
-        total_points: 1000, 
+      setNewProject({
+        name: '',
+        type: 'web_app',
+        total_points: 1000,
         deadline: '',
-        description: '' 
+        description: '',
+        assigned_cdp_id: ''
       });
       setErrors({});
     } catch (error) {
       console.error('Erreur lors de la création:', error);
       console.error('Response:', error.response?.data);
       console.error('Status:', error.response?.status);
-      
+
       const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Erreur lors de la création du projet';
       setErrors({ submit: errorMsg });
     } finally {
@@ -267,12 +320,12 @@ const Projects = () => {
                             border: newProject.type === type ? `2px solid ${getProjectTypeColor(type).text}` : '2px solid #e2e8f0'
                           }}
                         >
-                          <i className={`fas ${getProjectTypeIcon(type)}`} style={{ 
+                          <i className={`fas ${getProjectTypeIcon(type)}`} style={{
                             color: newProject.type === type ? getProjectTypeColor(type).text : '#94a3b8',
                             fontSize: '1.5rem',
                             marginBottom: '8px'
                           }}></i>
-                          <span style={{ 
+                          <span style={{
                             color: newProject.type === type ? getProjectTypeColor(type).text : '#64748b',
                             fontWeight: newProject.type === type ? '600' : '400'
                           }}>
@@ -283,12 +336,28 @@ const Projects = () => {
                     </div>
                   </div>
 
+                  {(user?.role === 'admin') && cdps.length > 0 && (
+                    <div className="form-group">
+                      <label><i className="fas fa-user-tie"></i> Chef de Projet assigné</label>
+                      <select
+                        value={newProject.assigned_cdp_id}
+                        onChange={e => setNewProject({...newProject, assigned_cdp_id: e.target.value})}
+                      >
+                        <option value="">-- Sélectionner un CDP --</option>
+                        {cdps.map(cdp => (
+                          <option key={cdp.id} value={cdp.id}>{cdp.full_name || cdp.email}</option>
+                        ))}
+                      </select>
+                      <p className="help-text">Le CDP sera responsable de ce projet (laisser vide pour vous l'assigner si vous êtes CDP)</p>
+                    </div>
+                  )}
+
                   <div className="form-row">
                     <div className="form-group">
                       <label><i className="fas fa-star"></i> Points totaux</label>
-                      <input 
-                        type="number" 
-                        value={newProject.total_points} 
+                      <input
+                        type="number"
+                        value={newProject.total_points}
                         onChange={e => setNewProject({...newProject, total_points: parseInt(e.target.value) || 0})}
                         min="0"
                         max="10000"
@@ -298,9 +367,9 @@ const Projects = () => {
 
                     <div className="form-group">
                       <label><i className="fas fa-calendar-alt"></i> Deadline *</label>
-                      <input 
-                        type="date" 
-                        value={newProject.deadline} 
+                      <input
+                        type="date"
+                        value={newProject.deadline}
                         onChange={e => {
                           setNewProject({...newProject, deadline: e.target.value});
                           if (errors.deadline) setErrors({...errors, deadline: null});
@@ -334,14 +403,21 @@ const Projects = () => {
                         </span>
                       </div>
                     </div>
-                    
+
                     {newProject.description && (
                       <div className="summary-item">
                         <label><i className="fas fa-align-left"></i> Description</label>
                         <p>{newProject.description}</p>
                       </div>
                     )}
-                    
+
+                    {newProject.assigned_cdp_id && cdps.length > 0 && (
+                      <div className="summary-item">
+                        <label><i className="fas fa-user-tie"></i> Chef de Projet</label>
+                        <p>{cdps.find(c => c.id === parseInt(newProject.assigned_cdp_id))?.full_name || 'Non assigné'}</p>
+                      </div>
+                    )}
+
                     <div className="summary-stats">
                       <div className="stat-item">
                         <i className="fas fa-star" style={{ color: '#f59e0b' }}></i>
@@ -418,13 +494,47 @@ const Projects = () => {
             
             return (
               <div key={project.id} className="project-card">
-                <div className="project-header" style={{ background: typeColor.gradient }}>
+                <div className="project-header" style={{ 
+                  background: typeColor.gradient,
+                  position: 'relative'
+                }}>
                   <i className={`fas ${getProjectTypeIcon(project.type)}`}></i>
                   <span className="project-type">{getProjectTypeName(project.type)}</span>
+                  {project.bonus_validated && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      background: '#FCD34D',
+                      borderRadius: '50%',
+                      width: '28px',
+                      height: '28px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 8px rgba(252, 211, 77, 0.6)'
+                    }}>
+                      <i className="fas fa-check-double" style={{ color: '#92400E', fontSize: '0.9rem' }} title="Bonus client validé ✓"></i>
+                    </div>
+                  )}
                 </div>
-                
+
                 <div className="project-body">
-                  <h3>{project.name}</h3>
+                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {project.name}
+                    {project.project_validated && (
+                      <span style={{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        background: '#D1FAE5',
+                        color: '#059669',
+                        fontSize: '0.75rem',
+                        fontWeight: '600'
+                      }}>
+                        <i className="fas fa-check"></i> Validé
+                      </span>
+                    )}
+                  </h3>
                   
                   {project.description && (
                     <p className="project-description">{project.description}</p>
@@ -455,64 +565,149 @@ const Projects = () => {
                     )}
                   </div>
 
-                  {/* Actions du projet (Admin uniquement) */}
-                  {(user?.role === 'admin') && (
-                    <div className="project-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                      <button
-                        className="btn-sm"
-                        style={{
-                          flex: 1,
-                          padding: '8px',
-                          background: project.archived ? '#10b981' : '#f59e0b',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '0.8rem'
-                        }}
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const action = project.archived ? 'désarchiver' : 'archiver';
-                          if (window.confirm(`${project.archived ? 'Désarchiver' : 'Archiver'} le projet "${project.name}" ?`)) {
-                            try {
-                              await api.patch(`/projects/${project.id}`, { archived: !project.archived });
-                              fetchProjects();
-                            } catch (error) {
-                              console.error('Erreur:', error);
-                              alert('Erreur lors de l\'action');
+                  {/* Actions du projet (CDP & Admin) - Dynamic visibility */}
+                  {(user?.role === 'cdp' || user?.role === 'admin') && (
+                    <div className="project-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {/* Bouton Valider le projet - Only when all sprints are validated */}
+                      {projectStates[project.id]?.allSprintsValidated && !project.project_validated && !project.project_completed && (
+                        <button
+                          className="btn-sm"
+                          style={{
+                            flex: '1 1 auto',
+                            minWidth: '120px',
+                            padding: '10px',
+                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                          }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`✅ Valider le projet "${project.name}" ?\n\nTous les sprints sont validés. Cette action marquera le projet comme validé.`)) {
+                              try {
+                                await api.patch(`/projects/${project.id}`, {
+                                  project_validated: true,
+                                  validated_by: user.id
+                                });
+                                fetchProjects();
+                                alert('✅ Projet validé avec succès !');
+                              } catch (error) {
+                                console.error('Erreur:', error);
+                                alert('Erreur lors de la validation: ' + (error.response?.data?.error || ''));
+                              }
                             }
-                          }
-                        }}
-                      >
-                        <i className={`fas ${project.archived ? 'fa-archive' : 'fa-box'}`}></i> {project.archived ? 'Désarchiver' : 'Archiver'}
-                      </button>
-                      <button
-                        className="btn-sm"
-                        style={{
-                          flex: 1,
-                          padding: '8px',
-                          background: '#dc2626',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '0.8rem'
-                        }}
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          if (window.confirm(`⚠️ Supprimer définitivement le projet "${project.name}" ?\n\nCette action est irréversible !`)) {
-                            try {
-                              await api.delete(`/projects/${project.id}`);
-                              fetchProjects();
-                            } catch (error) {
-                              console.error('Erreur:', error);
-                              alert('Erreur lors de la suppression');
+                          }}
+                          title="Valider le projet (tous les sprints sont validés)"
+                        >
+                          <i className="fas fa-check-circle"></i> Valider
+                        </button>
+                      )}
+
+                      {/* Bouton Archiver - Only when bonus is validated OR project is completed */}
+                      {(project.bonus_validated || project.project_completed) && !project.archived && (
+                        <button
+                          className="btn-sm"
+                          style={{
+                            flex: '1 1 auto',
+                            minWidth: '120px',
+                            padding: '10px',
+                            background: '#f59e0b',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600'
+                          }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`📦 Archiver le projet "${project.name}" ?`)) {
+                              try {
+                                await api.patch(`/projects/${project.id}`, { archived: true });
+                                fetchProjects();
+                              } catch (error) {
+                                console.error('Erreur:', error);
+                                alert('Erreur lors de l\'archivage');
+                              }
                             }
-                          }
-                        }}
-                      >
-                        <i className="fas fa-trash"></i> Supprimer
-                      </button>
+                          }}
+                          title="Archiver le projet"
+                        >
+                          <i className="fas fa-box"></i> Archiver
+                        </button>
+                      )}
+
+                      {/* Bouton Désarchiver */}
+                      {project.archived && (
+                        <button
+                          className="btn-sm"
+                          style={{
+                            flex: '1 1 auto',
+                            minWidth: '120px',
+                            padding: '10px',
+                            background: '#10b981',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600'
+                          }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`📦 Désarchiver le projet "${project.name}" ?`)) {
+                              try {
+                                await api.patch(`/projects/${project.id}`, { archived: false });
+                                fetchProjects();
+                              } catch (error) {
+                                console.error('Erreur:', error);
+                                alert('Erreur lors de l\'action');
+                              }
+                            }
+                          }}
+                          title="Désarchiver le projet"
+                        >
+                          <i className="fas fa-archive"></i> Désarchiver
+                        </button>
+                      )}
+
+                      {/* Bouton Supprimer - Only when no tasks have started */}
+                      {!projectStates[project.id]?.hasStartedTasks && user?.role === 'admin' && (
+                        <button
+                          className="btn-sm"
+                          style={{
+                            flex: '1 1 auto',
+                            minWidth: '120px',
+                            padding: '10px',
+                            background: '#dc2626',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600'
+                          }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`⚠️ Supprimer définitivement le projet "${project.name}" ?\n\nCette action est irréversible !`)) {
+                              try {
+                                await api.delete(`/projects/${project.id}`);
+                                fetchProjects();
+                              } catch (error) {
+                                console.error('Erreur:', error);
+                                alert('Erreur lors de la suppression');
+                              }
+                            }
+                          }}
+                          title="Supprimer le projet (aucune tâche démarrée)"
+                        >
+                          <i className="fas fa-trash"></i> Supprimer
+                        </button>
+                      )}
                     </div>
                   )}
                   

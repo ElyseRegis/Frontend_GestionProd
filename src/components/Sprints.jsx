@@ -84,6 +84,10 @@ const Sprints = () => {
             })));
         } catch (error) {
             console.error('Erreur:', error);
+            // Show user-friendly error
+            if (error.response?.status === 500) {
+                console.error('Server error - possibly missing database columns. Please run migration 003.');
+            }
         } finally {
             setLoading(false);
         }
